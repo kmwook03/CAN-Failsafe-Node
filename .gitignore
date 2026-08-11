@@ -1,0 +1,13 @@
+# STM32CubeIDE
+Debug/
+Release/
+.settings/
+*.launch
+*.mxproject
+.metadata/
+
+# KiCad
+*-backups/
+*.kicad_prl
+fp-info-cache
+*.bak

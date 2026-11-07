@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "m2_can_test.h"
 
 void M1_LCD_Test_Run(I2C_HandleTypeDef *hi2c, UART_HandleTypeDef *huart);
 /* USER CODE END Includes */
@@ -45,11 +46,14 @@ void M1_LCD_Test_Run(I2C_HandleTypeDef *hi2c, UART_HandleTypeDef *huart);
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+CAN_HandleTypeDef hcan1;
+
 I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+#if !M2_TEST_ENABLED
 #define ADC_CH_CNT   2
 #define MA_LEN       8
 #define BTN_DEBOUNCE_MS 25u
@@ -69,6 +73,7 @@ static GPIO_TypeDef * const BTN_PORT[BTN_COUNT] = {
 };
 
 static volatile uint16_t g_adc_raw[ADC_CH_CNT];
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,9 +83,12 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_CAN1_Init(void);
 /* USER CODE BEGIN PFP */
+#if !M2_TEST_ENABLED
 static uint8_t btn_take(btn_id_t id);
 static void btn_release_scan(void);
+#endif
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -112,7 +120,11 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+#if M2_TEST_ENABLED
+  if (M2_CAN_Test_PrepareClock() != HAL_OK) {
+    Error_Handler();
+  }
+#endif
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -121,7 +133,16 @@ int main(void)
   MX_ADC1_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
+#if M2_TEST_ENABLED
+  setvbuf(stdout, NULL, _IONBF, 0);
+  printf("\r\n[M2] Node 1 CAN test: %s, 500kbps, 3000 frames\r\n",
+         hcan1.Init.Mode == CAN_MODE_LOOPBACK ? "LOOPBACK" : "NORMAL");
+  if (M2_CAN_Test_Start(&hcan1) != HAL_OK) {
+    Error_Handler();
+  }
+#else
   HAL_UART_Transmit(&huart2, (uint8_t *)"UART-OK\r\n", 9, 100);
   M1_LCD_Test_Run(&hi2c1, &huart2);
   setvbuf(stdout, NULL, _IONBF, 0);
@@ -138,6 +159,7 @@ int main(void)
   	  Error_Handler();
   }
   HAL_Delay(50);
+#endif
   /* USER CODE END 2 */
 
   /* Initialize leds */
@@ -145,10 +167,27 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+#if !M2_TEST_ENABLED
   uint8_t mode = 0;
   uint8_t estop = 0;
   printf("\r\n=== BOOT ok, entering main loop ===\r\n");
+#endif
   while (1) {
+#if M2_TEST_ENABLED
+      static uint8_t reported = 0;
+      M2_CAN_Test_Process();
+      if ((m2.done != 0U) && (reported == 0U)) {
+          reported = 1;
+          printf("[M2] %s: tx=%lu rx=%lu bad=%lu tx_fail=%lu "
+                 "slips=%lu errors=%lu mask=0x%08lX bus_off=%lu\r\n",
+                 m2.passed ? "PASS" : "FAIL",
+                 (unsigned long)m2.tx_queued, (unsigned long)m2.rx_ok,
+                 (unsigned long)m2.bad_frames, (unsigned long)m2.tx_fail,
+                 (unsigned long)m2.schedule_slips,
+                 (unsigned long)m2.hal_error_events,
+                 (unsigned long)m2.error_mask, (unsigned long)m2.bus_off);
+      }
+#else
 	  btn_release_scan();
 	  static uint32_t t_last = 0;
 	  if ((uint32_t)(HAL_GetTick() - t_last) >= 1000) {
@@ -168,9 +207,11 @@ int main(void)
 		  printf("[BTN] E-STOP %s\r\n", estop ? "ON" : "OFF");
 	  }
 	  HAL_Delay(1);
+#endif
     /* USER CODE END WHILE */
-   }
+
     /* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
 }
 
@@ -284,6 +325,43 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief CAN1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CAN1_Init(void)
+{
+
+  /* USER CODE BEGIN CAN1_Init 0 */
+
+  /* USER CODE END CAN1_Init 0 */
+
+  /* USER CODE BEGIN CAN1_Init 1 */
+
+  /* USER CODE END CAN1_Init 1 */
+  hcan1.Instance = CAN1;
+  hcan1.Init.Prescaler = 6;
+  hcan1.Init.Mode = CAN_MODE_NORMAL;
+  hcan1.Init.SyncJumpWidth = CAN_SJW_2TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+  hcan1.Init.TimeTriggeredMode = DISABLE;
+  hcan1.Init.AutoBusOff = DISABLE;
+  hcan1.Init.AutoWakeUp = DISABLE;
+  hcan1.Init.AutoRetransmission = ENABLE;
+  hcan1.Init.ReceiveFifoLocked = DISABLE;
+  hcan1.Init.TransmitFifoPriority = DISABLE;
+  if (HAL_CAN_Init(&hcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CAN1_Init 2 */
+
+  /* USER CODE END CAN1_Init 2 */
 
 }
 
@@ -437,6 +515,7 @@ int __io_putchar(int ch)
   return ch;
 }
 
+#if !M2_TEST_ENABLED
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   btn_id_t id;
@@ -486,6 +565,7 @@ static void btn_release_scan(void)
 	  }
   }
 }
+#endif /* !M2_TEST_ENABLED */
 /* USER CODE END 4 */
 
 /**

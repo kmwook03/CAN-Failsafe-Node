@@ -1,0 +1,35 @@
+M2 사용자 전달 기록
+기록일: 2026-11-07 (Asia/Seoul)
+출처: 이 채팅에서 사용자가 전달한 문자열과 확인 답변.
+주의: UART에서 직접 저장한 터미널 파일이 아니며 타임스탬프·COM 포트 원본은 없다.
+
+[1] Node 1 초기 실패 — 사용자 원문
+FAIL: tx=3 rx=0 bad=0 tx_fail=2997 slips=0 errors=225852 mask=0x00000023 bus_off=0
+
+[2] Node 2 시작 — 사용자 원문
+[M2] Node 2 CAN test: NORMAL ECHO, 500kbps, 3000 frames
+
+[3] Node 2 디버거 확인 — 사용자 원문
+HAL_CAN_STATE_LISTENING이고 ErrorCode는 0이야
+
+[4] Node 2 부분 수신 실패 — 사용자 원문, 필드 누락·오타를 수정하지 않음
+FAIL: 146 completed=146 rx=145 bad=1 tx_fail=0 slips=0 errors=0 masx=0x00000000 bus_off=0 timeout=1
+
+[5] 시작 순서 재안내 후 Node 2 최종 성공 — 사용자 원문
+PASS: tx=3000 completed=3000 rx=3000 bad=0 tx_fail=0 slips=0 errors=0 mask=0x00000000 bus_off=0 timeout=0
+
+[6] Node 1 결과 출처 정정
+사용자는 [5]와 같은 문자열이 Node 1에도 나왔다고 처음 보고했다.
+현행 Node 1에는 completed·timeout 출력이 없어 출처를 재확인했다.
+사용자 최종 답변: 붙여넣은 로그가 Node 2 것이며 Node 1은 재확인이 필요하다
+따라서 [5]를 Node 1의 최종 결과로 중복 사용하지 않는다.
+
+[7] 계측 여부 확인
+질문: 로직 애널라이저의 CAN 비트폭 2µs 측정이나 MCO 클럭 주파수 실측도 완료했나요?
+사용자 답변: 아직 실측하지 않았다
+
+[8] 종단저항 확인 — 사용자 원문
+아 두개 연결해서 측정하니까 60옴 나온다
+
+[9] Loopback 결과 — 사용자 원문
+두 노드 모두 약 70초 후 정상 출력 확인했음. 이제 양 노드 통신으로 테스트 하자.

@@ -3,9 +3,9 @@
 
 #include "main.h"
 
-/* Set to 0 to run the existing M1 application again. */
+/* Archived M2 module. Restore the M2 baseline to run the bare-metal test. */
 #ifndef M2_TEST_ENABLED
-#define M2_TEST_ENABLED 1
+#define M2_TEST_ENABLED 0
 #endif
 
 #define M2_FRAME_COUNT 3000U

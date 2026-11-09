@@ -3,9 +3,9 @@
 
 #include "main.h"
 
-/* Set to 0 to restore the M1 ultrasonic test. */
+/* Historical M2 module; restore the m2-baseline-before-m3 tag to run M2. */
 #ifndef M2_TEST_ENABLED
-#define M2_TEST_ENABLED 1
+#define M2_TEST_ENABLED 0
 #endif
 
 #define M2_FRAME_COUNT 3000U

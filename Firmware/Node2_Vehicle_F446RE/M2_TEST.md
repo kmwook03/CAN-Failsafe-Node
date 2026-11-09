@@ -1,5 +1,7 @@
 # Node 2 M2 CAN 시험
 
+> 아래 설명은 `m2-baseline-before-m3` 보존본 기준이다. 현재 작업 버전은 M3 CAN RX 큐 시험으로 전환했으며, 실행 방법은 [M3_CAN_TEST.md](M3_CAN_TEST.md)를 참조한다.
+
 - 구현: `Core/Src/m2_can_test.c`, `Core/Inc/m2_can_test.h`
 - 실행 연결: `Core/Src/main.c`의 USER CODE 영역
 - 현재 설정: `M2_TEST_ENABLED=1`, CAN1 Normal, 500kbps

@@ -1,0 +1,38 @@
+{
+  "date_kst": "2026-11-09",
+  "toolchain": "STM32CubeIDE 2.2.0 / Arm GNU 14.3.rel1",
+  "baseline_commit": "1af032e7cd35b84679f8cfc7cc024b16b4e9cdb3",
+  "cubemx_regeneration_user_code_preserved": true,
+  "hardware_test_performed": false,
+  "configurations": {
+    "Debug": {
+      "errors": 0,
+      "warnings": 0,
+      "elf_sha256": "3ce75fca33060001c89935ff96aad7bc1b1e70e1dad36457088a635fd5bc266a",
+      "text_bytes": 32408,
+      "data_bytes": 104,
+      "bss_bytes": 21080,
+      "vector_checks": {
+        "SVC_Handler": "0x8006c91",
+        "PendSV_Handler": "0x8006e81",
+        "SysTick_Handler": "0x80049e1",
+        "TIM6_DAC_IRQHandler": "0x8001291"
+      }
+    },
+    "Release": {
+      "errors": 0,
+      "warnings": 0,
+      "elf_sha256": "757e8b6b04b80b00d6026c5c3910ecfce99d8d13d2d01d735e11949d087ae256",
+      "text_bytes": 19040,
+      "data_bytes": 104,
+      "bss_bytes": 21072,
+      "vector_checks": {
+        "SVC_Handler": "0x8003b41",
+        "PendSV_Handler": "0x8003bc1",
+        "SysTick_Handler": "0x800270f",
+        "TIM6_DAC_IRQHandler": "0x8000de1"
+      }
+    }
+  },
+  "sources_manifest": "source-sha256.txt"
+}

@@ -18,11 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include "m2_can_test.h"
+#include "m3_can_test.h"
+#include "m3_rtos_test.h"
 
 void M1_LCD_Test_Run(I2C_HandleTypeDef *hi2c, UART_HandleTypeDef *huart);
 /* USER CODE END Includes */
@@ -34,7 +36,7 @@ void M1_LCD_Test_Run(I2C_HandleTypeDef *hi2c, UART_HandleTypeDef *huart);
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define M1_TEST_ENABLED 0 /* Archived M1 helpers; not part of M3 CAN test. */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,8 +54,36 @@ I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart2;
 
+/* Definitions for ledTask */
+osThreadId_t ledTaskHandle;
+const osThreadAttr_t ledTask_attributes = {
+  .name = "ledTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for monitorTask */
+osThreadId_t monitorTaskHandle;
+const osThreadAttr_t monitorTask_attributes = {
+  .name = "monitorTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for canTxTask */
+osThreadId_t canTxTaskHandle;
+const osThreadAttr_t canTxTask_attributes = {
+  .name = "canTxTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal1,
+};
+/* Definitions for canRxTask */
+osThreadId_t canRxTaskHandle;
+const osThreadAttr_t canRxTask_attributes = {
+  .name = "canRxTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
 /* USER CODE BEGIN PV */
-#if !M2_TEST_ENABLED
+#if M1_TEST_ENABLED
 #define ADC_CH_CNT   2
 #define MA_LEN       8
 #define BTN_DEBOUNCE_MS 25u
@@ -84,8 +114,13 @@ static void MX_ADC1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_CAN1_Init(void);
+void StartLedTask(void *argument);
+void StartMonitorTask(void *argument);
+void StartCanTxTask(void *argument);
+void StartCanRxTask(void *argument);
+
 /* USER CODE BEGIN PFP */
-#if !M2_TEST_ENABLED
+#if M1_TEST_ENABLED
 static uint8_t btn_take(btn_id_t id);
 static void btn_release_scan(void);
 #endif
@@ -120,11 +155,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-#if M2_TEST_ENABLED
-  if (M2_CAN_Test_PrepareClock() != HAL_OK) {
-    Error_Handler();
+  if (M3_CAN_Test_PrepareClock() != HAL_OK) {
+    M3_RtosFatal(M3_FAULT_HAL);
   }
-#endif
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -135,79 +168,64 @@ int main(void)
   MX_I2C1_Init();
   MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
-#if M2_TEST_ENABLED
-  setvbuf(stdout, NULL, _IONBF, 0);
-  printf("\r\n[M2] Node 1 CAN test: %s, 500kbps, 3000 frames\r\n",
-         hcan1.Init.Mode == CAN_MODE_LOOPBACK ? "LOOPBACK" : "NORMAL");
-  if (M2_CAN_Test_Start(&hcan1) != HAL_OK) {
-    Error_Handler();
-  }
-#else
-  HAL_UART_Transmit(&huart2, (uint8_t *)"UART-OK\r\n", 9, 100);
-  M1_LCD_Test_Run(&hi2c1, &huart2);
-  setvbuf(stdout, NULL, _IONBF, 0);
-  /*Calibration: Before Start_DMA, it should be called when ADC off*/
-  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK) {
-	  printf("ADC calibration FAILED\r\n");
-	  Error_Handler();
-  }
-  printf("ADC calibration OK (factor=%lu)\r\n",
-  HAL_ADCEx_Calibration_GetValue(&hadc1, ADC_SINGLE_ENDED));
-
-  if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)(void *)g_adc_raw, ADC_CH_CNT) != HAL_OK) {
-  	  printf("ADC DMA start Failed\r\n");
-  	  Error_Handler();
-  }
-  HAL_Delay(50);
-#endif
+  /* CAN starts in canTxTask after the scheduler is running. */
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  M3_CAN_Test_Init(&hcan1);
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of ledTask */
+  ledTaskHandle = osThreadNew(StartLedTask, NULL, &ledTask_attributes);
+
+  /* creation of monitorTask */
+  monitorTaskHandle = osThreadNew(StartMonitorTask, NULL, &monitorTask_attributes);
+
+  /* creation of canTxTask */
+  canTxTaskHandle = osThreadNew(StartCanTxTask, NULL, &canTxTask_attributes);
+
+  /* creation of canRxTask */
+  canRxTaskHandle = osThreadNew(StartCanRxTask, NULL, &canRxTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  if ((ledTaskHandle == NULL) || (monitorTaskHandle == NULL) ||
+      (canTxTaskHandle == NULL) || (canRxTaskHandle == NULL)) {
+    M3_RtosFatal(M3_FAULT_ALLOCATION);
+  }
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
 
   /* Initialize leds */
   BSP_LED_Init(LED_GREEN);
 
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-#if !M2_TEST_ENABLED
-  uint8_t mode = 0;
-  uint8_t estop = 0;
-  printf("\r\n=== BOOT ok, entering main loop ===\r\n");
-#endif
+  M3_RtosFatal(M3_FAULT_KERNEL);
   while (1) {
-#if M2_TEST_ENABLED
-      static uint8_t reported = 0;
-      M2_CAN_Test_Process();
-      if ((m2.done != 0U) && (reported == 0U)) {
-          reported = 1;
-          printf("[M2] %s: tx=%lu rx=%lu bad=%lu tx_fail=%lu "
-                 "slips=%lu errors=%lu mask=0x%08lX bus_off=%lu\r\n",
-                 m2.passed ? "PASS" : "FAIL",
-                 (unsigned long)m2.tx_queued, (unsigned long)m2.rx_ok,
-                 (unsigned long)m2.bad_frames, (unsigned long)m2.tx_fail,
-                 (unsigned long)m2.schedule_slips,
-                 (unsigned long)m2.hal_error_events,
-                 (unsigned long)m2.error_mask, (unsigned long)m2.bus_off);
-      }
-#else
-	  btn_release_scan();
-	  static uint32_t t_last = 0;
-	  if ((uint32_t)(HAL_GetTick() - t_last) >= 1000) {
-	      t_last = HAL_GetTick();
-	      printf("raw = %lu / %lu / %lu\r\n", s_irq_raw[0], s_irq_raw[1], s_irq_raw[2]);
-	  }
-	  if (btn_take(BTN_ARM)) {
-		  printf("[BTN] ARM        (raw=%lu)\r\n", s_irq_raw[BTN_ARM]);
-	  }
-	  if (btn_take(BTN_MODE)) {
-		  mode = (mode + 1) % 3;
-		  printf("[BTN] MODE -> %u  (raw=%lu)\r\n", mode, s_irq_raw[BTN_MODE]);
-	  }
-	  if (btn_take(BTN_ESTOP)) {
-		  estop = !estop;
-		  HAL_GPIO_WritePin(LED3_GPIO_PORT, LED3_PIN, estop ? GPIO_PIN_SET : GPIO_PIN_RESET);
-		  printf("[BTN] E-STOP %s\r\n", estop ? "ON" : "OFF");
-	  }
-	  HAL_Delay(1);
-#endif
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -459,7 +477,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
@@ -515,7 +533,7 @@ int __io_putchar(int ch)
   return ch;
 }
 
-#if !M2_TEST_ENABLED
+#if M1_TEST_ENABLED
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   btn_id_t id;
@@ -565,8 +583,86 @@ static void btn_release_scan(void)
 	  }
   }
 }
-#endif /* !M2_TEST_ENABLED */
+#endif /* M1_TEST_ENABLED */
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartLedTask */
+/**
+  * @brief  Function implementing the ledTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartLedTask */
+void StartLedTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  M3_LedTask(argument);
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartMonitorTask */
+/**
+* @brief Function implementing the monitorTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartMonitorTask */
+void StartMonitorTask(void *argument)
+{
+  /* USER CODE BEGIN StartMonitorTask */
+  M3_MonitorTask(argument);
+  /* USER CODE END StartMonitorTask */
+}
+
+/* USER CODE BEGIN Header_StartCanTxTask */
+/**
+* @brief Function implementing the canTxTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCanTxTask */
+void StartCanTxTask(void *argument)
+{
+  /* USER CODE BEGIN StartCanTxTask */
+  M3_CAN_Test_TxTask(argument);
+  /* USER CODE END StartCanTxTask */
+}
+
+/* USER CODE BEGIN Header_StartCanRxTask */
+/**
+* @brief Function implementing the canRxTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCanRxTask */
+void StartCanRxTask(void *argument)
+{
+  /* USER CODE BEGIN StartCanRxTask */
+  M3_CAN_Test_RxTask(argument);
+  /* USER CODE END StartCanRxTask */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -575,11 +671,7 @@ static void btn_release_scan(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+  M3_RtosFatal(M3_FAULT_HAL);
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT

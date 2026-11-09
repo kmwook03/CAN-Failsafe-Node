@@ -1,0 +1,39 @@
+M3-2 사용자 전달 CAN 시험 기록
+기록일: 2026-11-09 (Asia/Seoul)
+출처: 사용자가 이 채팅에 붙여 넣은 차량/조종기 UART 결과.
+직접 수집한 터미널 원본 파일은 아니며 COM 포트, 빌드 구성,
+실제 다운로드한 바이너리 해시와 연속 로그는 전달되지 않았다.
+
+[1] 차량 F446RE — 사용자 원문
+[M3-CAN] PASS: tx=3000 completed=3000 rx=3000 bad=0 tx_fail=0 errors=0 mask=0x00000000 bus_off=0 timeout=0 initErr=0 stopErr=0
+[M3-CAN] queue: received=3000 enqueued=3000 processed=3000 dropped=0 readErr=0 qErr=0 peak=1 maxWaitMs=1 stackB=752
+
+[2] 조종기 L432KC — 사용자 원문
+[M2] PASS: tx=3000 rx=3000 bad=0 tx_fail=0 slips=0 errors=0 mask=0x00000000 bus_off=0
+
+[3] CAN 결과 수신 시점의 판정 (최신 RTOS 진단 수신 전)
+- 양 노드의 CAN 3,000프레임 왕복 기능 시험 PASS (사용자 보고 기준).
+- 차량 ISR 수신/큐 삽입/태스크 처리 각각 3000, 큐 손실/읽기/큐 API 오류 0.
+- 차량 송신 등록과 실제 송신 완료 각각 3000, CAN 오류/Bus-Off/타임아웃 0.
+- 큐 최대 점유량 1/16, HAL tick 기준 관측 최대 대기 1ms.
+  이 값은 정밀 측정이나 모든 조건의 지연 상한 보장이 아니다.
+- CAN 태스크 최소 스택 여유: 752/1024 bytes = 73.4375%, 30% 기준 충족.
+- Node 1 최종 PASS는 이번 M3-2 상대 노드 구성에서 확보했다.
+  2026-11-07 베어메탈 양 노드 시험의 누락 로그를 소급해서 채운 것은 아니다.
+- CAN 부하가 추가된 현재 펌웨어의 최신 [M3] 진단 줄은 미전달.
+  LED/Monitor 스택, tickErr/late/uartErr, heapMinB는 이전 M3-1 값으로 대체하지 않는다.
+- 큐 넘침/Bus-Off 오류 주입과 전체 M3 24시간 시험은 별도 미검증 항목이다.
+
+[4] PASS 이후 RTOS 진단 — 사용자 원문 (2026-11-09)
+[M3] n=66 led=133 dt=1000/1000 stackB=832/808 heapMinB=10184 tickErr=0 late=0/0 uartErr=0 canStackB=752
+
+[5] M3-2 최종 판정
+- 사용자 보고 기준 M3-2 정상 통신·RTOS 통합 시험 PASS.
+- LED 최소 스택 여유: 832/1024 bytes = 81.25%.
+- Monitor 최소 스택 여유: 808/2048 bytes = 39.453125%.
+- CAN 최소 스택 여유: 752/1024 bytes = 73.4375%.
+- 세 태스크 모두 최소 여유 30% 기준 충족.
+- RTOS 최소 힙 여유 10184 bytes, dt=1000/1000.
+- tickErr=0, late=0/0, uartErr=0.
+- n=66과 led=133은 시작 직후 1회 전환 후 0.5초마다 전환하는 동작에 부합.
+- 이번 정상 시험의 결과이며 오류 주입 및 전체 M3 24시간 시험으로 확대하지 않는다.

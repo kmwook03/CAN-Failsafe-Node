@@ -18,12 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ultrasonic_test.h"
-#include "m2_can_test.h"
-#include <stdio.h>
+#include "m3_rtos_test.h"
+#include "m3_can_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,6 +51,27 @@ TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
 
+/* Definitions for ledTask */
+osThreadId_t ledTaskHandle;
+const osThreadAttr_t ledTask_attributes = {
+  .name = "ledTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for monitorTask */
+osThreadId_t monitorTaskHandle;
+const osThreadAttr_t monitorTask_attributes = {
+  .name = "monitorTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for canRxTask */
+osThreadId_t canRxTaskHandle;
+const osThreadAttr_t canRxTask_attributes = {
+  .name = "canRxTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -62,17 +83,17 @@ static void MX_TIM3_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_CAN1_Init(void);
+void StartLedTask(void *argument);
+void StartMonitorTask(void *argument);
+void StartCanRxTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch)
-{
-    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-    return ch;
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -109,17 +130,50 @@ int main(void)
   MX_TIM4_Init();
   MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
-  setvbuf(stdout, NULL, _IONBF, 0);
-#if M2_TEST_ENABLED
-  printf("\r\n[M2] Node 2 CAN test: %s, 500kbps, 3000 frames\r\n",
-         hcan1.Init.Mode == CAN_MODE_LOOPBACK ? "LOOPBACK" : "NORMAL ECHO");
-  if (M2_CAN_Test_Start(&hcan1) != HAL_OK) {
-    Error_Handler();
-  }
-#else
-  UltrasonicTest_Init(&htim4);
-#endif
+  /* CAN starts in canRxTask after queue creation; motor PWM stays off. */
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  if (osKernelGetState() != osKernelReady) {
+    M3_RtosFatal(M3_FAULT_KERNEL);
+  }
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  M3_CAN_Test_Init(&hcan1);
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of ledTask */
+  ledTaskHandle = osThreadNew(StartLedTask, NULL, &ledTask_attributes);
+
+  /* creation of monitorTask */
+  monitorTaskHandle = osThreadNew(StartMonitorTask, NULL, &monitorTask_attributes);
+
+  /* creation of canRxTask */
+  canRxTaskHandle = osThreadNew(StartCanRxTask, NULL, &canRxTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  if ((ledTaskHandle == NULL) || (monitorTaskHandle == NULL) ||
+      (canRxTaskHandle == NULL)) {
+    M3_RtosFatal(M3_FAULT_ALLOCATION);
+  }
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
 
   /* Initialize leds */
   BSP_LED_Init(LED2);
@@ -127,27 +181,16 @@ int main(void)
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  M3_RtosFatal(M3_FAULT_KERNEL);
   while (1)
   {
-#if M2_TEST_ENABLED
-    static uint8_t reported = 0;
-    M2_CAN_Test_Process();
-    if ((m2.done != 0U) && (reported == 0U)) {
-      reported = 1;
-      printf("[M2] %s: tx=%lu completed=%lu rx=%lu bad=%lu tx_fail=%lu "
-             "slips=%lu errors=%lu mask=0x%08lX bus_off=%lu timeout=%lu\r\n",
-             m2.passed ? "PASS" : "FAIL",
-             (unsigned long)m2.tx_queued, (unsigned long)m2.tx_completed,
-             (unsigned long)m2.rx_ok, (unsigned long)m2.bad_frames,
-             (unsigned long)m2.tx_fail, (unsigned long)m2.schedule_slips,
-             (unsigned long)m2.hal_error_events, (unsigned long)m2.error_mask,
-             (unsigned long)m2.bus_off, (unsigned long)m2.rx_timeout);
-    }
-#else
-    UltrasonicTest_Process();
-#endif
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -208,8 +251,10 @@ void SystemClock_Config(void)
   */
 static void MX_CAN1_Init(void)
 {
+
   /* USER CODE BEGIN CAN1_Init 0 */
   /* USER CODE END CAN1_Init 0 */
+
   /* USER CODE BEGIN CAN1_Init 1 */
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
@@ -224,15 +269,19 @@ static void MX_CAN1_Init(void)
   hcan1.Init.AutoRetransmission = ENABLE;
   hcan1.Init.ReceiveFifoLocked = DISABLE;
   hcan1.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK) {
+  if (HAL_CAN_Init(&hcan1) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
   /* USER CODE END CAN1_Init 2 */
+
 }
 
 /**
   * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
   */
 static void MX_TIM3_Init(void)
 {
@@ -392,20 +441,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, MOT_IN1_Pin|MOT_IN2_Pin|MOT_IN3_Pin|MOT_IN4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : MOT_IN1_Pin MOT_IN2_Pin MOT_IN3_Pin MOT_IN4_Pin */
   GPIO_InitStruct.Pin = MOT_IN1_Pin|MOT_IN2_Pin|MOT_IN3_Pin|MOT_IN4_Pin;
@@ -430,6 +469,66 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
+/* USER CODE BEGIN Header_StartLedTask */
+/**
+  * @brief  Function implementing the ledTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartLedTask */
+void StartLedTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  M3_LedTask(argument);
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartMonitorTask */
+/**
+* @brief Function implementing the monitorTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartMonitorTask */
+void StartMonitorTask(void *argument)
+{
+  /* USER CODE BEGIN StartMonitorTask */
+  M3_MonitorTask(argument);
+  /* USER CODE END StartMonitorTask */
+}
+
+/* USER CODE BEGIN Header_StartCanRxTask */
+/** @brief CAN RX queue consumer and M2-compatible echo test. */
+/* USER CODE END Header_StartCanRxTask */
+void StartCanRxTask(void *argument)
+{
+  /* USER CODE BEGIN StartCanRxTask */
+  M3_CAN_Test_Task(argument);
+  /* USER CODE END StartCanRxTask */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
 /**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
@@ -437,11 +536,7 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+  M3_RtosFatal(M3_FAULT_HAL);
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT

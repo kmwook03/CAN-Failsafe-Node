@@ -1,0 +1,13 @@
+M3-3 user-reported UART evidence
+Received: 2026-11-09 (Asia/Seoul)
+Source: user pasted these lines into the conversation; not captured directly by the agent.
+Board firmware binary hashes were not independently read back from the boards.
+
+[M3-N1-CAN] PASS: tx=3000 completed=3000 rx=3000 bad=0 tx_fail=0 slips=0 errors=0 mask=0x00000000 bus_off=0 timeout=0 initErr=0 stopErr=0
+[M3-N1-CAN] queue: received=3000 enqueued=3000 processed=3000 dropped=0 readErr=0 qErr=0 peak=1 maxWaitMs=0
+[M3-N1-CAN] timing: periodMs=20 maxLateTicks=0 deadlineErr=0 txStackB=808 rxStackB=800
+[M3-N1] n=64 led=129 dt=1000/1000 stackB=832/784 heapMinB=9048 tickErr=0 late=0/0 uartErr=0 txStackB=808 rxStackB=800
+
+[M3-CAN] PASS: tx=3000 completed=3000 rx=3000 bad=0 tx_fail=0 errors=0 mask=0x00000000 bus_off=0 timeout=0 initErr=0 stopErr=0
+[M3-CAN] queue: received=3000 enqueued=3000 processed=3000 dropped=0 readErr=0 qErr=0 peak=1 maxWaitMs=1 stackB=752
+[M3] n=65 led=131 dt=1000/1000 stackB=832/808 heapMinB=10184 tickErr=0 late=0/0 uartErr=0 canStackB=752

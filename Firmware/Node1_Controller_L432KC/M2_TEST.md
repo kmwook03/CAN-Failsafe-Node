@@ -1,9 +1,11 @@
 # Node 1 M2 CAN 시험
 
+> 아래 내용은 베어메탈 M2 기준의 보존 문서다. 현재 작업 트리는 M3-3 RTOS 구성(`M2_TEST_ENABLED=0`)이며 [M3_TEST.md](M3_TEST.md)를 따른다. M2 재현은 `m2-baseline-before-m3` 또는 보존 ZIP을 별도 디렉터리에 복원한다. Node 1의 최종 PASS는 후속 [M3-2 시험](../../Reports/M3/CAN-Queue-Integration.md)에서 확보했다.
+
 - 시험 구현: `Core/Src/m2_can_test.c`
 - 공개 함수와 실행 스위치: `Core/Inc/m2_can_test.h`
 - 실행 연결: `Core/Src/main.c`의 USER CODE 영역
-- 현재 설정: `M2_TEST_ENABLED=1`, CAN1 Normal, 500kbps
+- M2 당시 설정: `M2_TEST_ENABLED=1`, CAN1 Normal, 500kbps
 - 양쪽 Loopback 정상 출력과 Node 2의 Normal 수신·응답 3,000회 PASS는 사용자가 확인했다. Node 1의 최종 PASS 로그는 재확인이 필요하다.
 - [2026-11-07 검증 기록](../../Reports/M2/CAN-Link-Validation.md)
 

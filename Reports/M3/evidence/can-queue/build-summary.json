@@ -1,0 +1,72 @@
+{
+  "date_kst": "2026-11-09",
+  "stage": "M3-2 CAN RX queue integration",
+  "toolchain": "STM32CubeIDE 2.2.0 / Arm GNU 14.3.rel1",
+  "cubemx_regeneration_verified": true,
+  "node1_unchanged_from_M2": true,
+  "hardware_test_performed": false,
+  "negative_runtime_tests_performed": false,
+  "configurations": {
+    "Debug": {
+      "errors": 0,
+      "warnings": 0,
+      "elf_sha256": "517a7d522ea2221a0736b9907f5c1adace2c5d3763135ac3adf1c8f25e90dc02",
+      "text_bytes": 38872,
+      "data_bytes": 104,
+      "bss_bytes": 21208,
+      "vector_checks": {
+        "SVC_Handler": "0x8008421",
+        "PendSV_Handler": "0x8008611",
+        "SysTick_Handler": "0x8005c25",
+        "TIM6_DAC_IRQHandler": "0x8001cad",
+        "CAN1_TX_IRQHandler": "0x8001c4d",
+        "CAN1_RX0_IRQHandler": "0x8001c61",
+        "CAN1_SCE_IRQHandler": "0x8001c75"
+      },
+      "strong_symbols_verified": [
+        "HAL_InitTick",
+        "M3_CAN_Test_Task",
+        "M3_CAN_Test_Init",
+        "M3_CAN_Test_GetStats",
+        "osMessageQueuePut",
+        "osMessageQueueGet",
+        "HAL_CAN_RxFifo0MsgPendingCallback",
+        "HAL_CAN_TxMailbox0CompleteCallback",
+        "HAL_CAN_TxMailbox1CompleteCallback",
+        "HAL_CAN_TxMailbox2CompleteCallback",
+        "HAL_CAN_ErrorCallback"
+      ]
+    },
+    "Release": {
+      "errors": 0,
+      "warnings": 0,
+      "elf_sha256": "4e30385b2a253270834a551135096e666df19888f91563752904ecc0038de716",
+      "text_bytes": 22832,
+      "data_bytes": 104,
+      "bss_bytes": 21200,
+      "vector_checks": {
+        "SVC_Handler": "0x8004871",
+        "PendSV_Handler": "0x80048f1",
+        "SysTick_Handler": "0x800313b",
+        "TIM6_DAC_IRQHandler": "0x8001415",
+        "CAN1_TX_IRQHandler": "0x80013ed",
+        "CAN1_RX0_IRQHandler": "0x80013f9",
+        "CAN1_SCE_IRQHandler": "0x80013fd"
+      },
+      "strong_symbols_verified": [
+        "HAL_InitTick",
+        "M3_CAN_Test_Task",
+        "M3_CAN_Test_Init",
+        "M3_CAN_Test_GetStats",
+        "osMessageQueuePut",
+        "osMessageQueueGet",
+        "HAL_CAN_RxFifo0MsgPendingCallback",
+        "HAL_CAN_TxMailbox0CompleteCallback",
+        "HAL_CAN_TxMailbox1CompleteCallback",
+        "HAL_CAN_TxMailbox2CompleteCallback",
+        "HAL_CAN_ErrorCallback"
+      ]
+    }
+  },
+  "sources_manifest": "source-sha256.txt"
+}
